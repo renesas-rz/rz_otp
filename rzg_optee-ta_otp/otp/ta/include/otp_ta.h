@@ -1,5 +1,3 @@
-// ta_uuid.h
-
 #ifndef TA_OTP_H
 #define TA_OTP_H
 
@@ -11,4 +9,4 @@
 #define PTA_OTP_CMD_READ 0
 #define PTA_OTP_CMD_WRITE 1
 
-#endif /* TA_READ_REGISTER_H */
+#endif /* TA_OTP_H */
