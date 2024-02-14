@@ -1,7 +1,7 @@
 // ta_uuid.h
 
-#ifndef TA_READ_REGISTER_H
-#define TA_READ_REGISTER_H
+#ifndef TA_OTP_H
+#define TA_OTP_H
 
 // Replace the UUID values below with your own UUID
 
