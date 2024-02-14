@@ -1,0 +1,1029 @@
+diff --git a/Message.c b/Message.c
+index ece1cd3..2404676 100644
+--- a/Message.c
++++ b/Message.c
+@@ -61,5 +61,11 @@ const char *const AllHelpMess[ALL_HELP_MESS_LINE] = {
+ 				" F  [sadr] [eadr] [data]   fill memory",
+ 				" FL [sadr] [eadr] [data]   fill memory(LONG)",
+ 				" FX [sadr] [eadr] [data]   fill memory(LONG LONG)",
++#if OTP_USE == 1
++				"        One Time PROM acccess command",
++				" OTP_W          write OTP",
++				" OTP_R          read OTP",
++				" OTP_D          read OTP 64byte",
++#endif /* OTP_USE == 1 */
+ 				MESSAGE_END,
+ };
+diff --git a/dgotp.c b/dgotp.c
+new file mode 100644
+index 0000000..c646966
+--- /dev/null
++++ b/dgotp.c
+@@ -0,0 +1,263 @@
++/*
++ * Copyright (c) 2015-2021, Renesas Electronics Corporation. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include	<stddef.h>
++#include	"types.h"
++#include	"common.h"
++#include	"devdrv.h"
++#include	"dgotp.h"
++#include	"otp/otp_sys.h"
++
++#define	STR_BUF_SIZE	(64)
++#define	KEY_BUF_SIZE	(16)
++
++//////////////////////////////////////////
++// SetAddInputKey
++//////////////////////////////////////////
++static void SetAddInputKey(uint32_t *Address)
++{
++	char		str[STR_BUF_SIZE];
++	char		buf[KEY_BUF_SIZE], key[KEY_BUF_SIZE], chCnt, chPtr;
++	uint32_t	loop;
++	uint32_t	wrData;
++
++	loop = 1;
++	while(loop)
++	{
++		PutStr("  Please Input : H'", 0);
++		GetStr(key, &chCnt);
++		chPtr = 0;
++		if (!GetStrBlk(key, buf, &chPtr, 0))
++		{
++			if (chPtr == 1)
++			{
++				/* Case Return */
++			}
++			else if((buf[0] == '.'))
++			{
++				/* Case End */
++				loop = 0;
++			}
++			else if (chPtr > (char)((SIZE_32BIT << 1) + 1))
++			{
++				/* Case Data Size Over */
++				PutStr("Syntax Error", 1);
++			}
++			else
++			{
++				if (HexAscii2Data((unsigned char*)buf, &wrData))
++				{
++					PutStr("Syntax Error", 1);
++				}
++				else
++				{
++					*Address = wrData;
++					loop = 0;
++				}
++			}
++		}
++		else
++		{
++			PutStr("Syntax Error", 1);
++		}
++	}
++}
++
++/************************************************************************
++	MODULE			: dgOTP_write				*
++	FUNCTION		: write OTP				*
++	COMMAND			: OTP_W					*
++	INPUT PARAMETER		: OTP_W					*
++*************************************************************************/
++void dgOTP_write(void)
++{
++	char		str[STR_BUF_SIZE];
++	uint32_t	OtpAddr, OtpData;
++	int32_t		ret;
++
++	PutStr("===== Write data to OTP ============", 1);
++	PutStr("===== Please Input Address ============", 1);
++	SetAddInputKey(&OtpAddr);
++	PutStr("===== Please Input Data ============", 1);
++	SetAddInputKey(&OtpData);
++
++	ret = otp_open();
++	if (OTP_NO_ERRORS != ret)
++	{
++		PutStr("Can't use OTP", 1);
++		return;		// Error abort
++	}
++	ret = otp_write(OtpAddr, OtpData);
++	switch (ret)
++	{
++	case	OTP_ECC_DOUBLE_DETECTION:	// -4:OTP_ECC_DOUBLE_DETECTION
++		OtpAddr = err_int_clear();
++		Data2HexAscii(OtpAddr, str, SIZE_32BIT);
++		PutStr("ECC Double Error Detection at : H'", 0);
++		PutStr(str, 1);
++		break;
++	case	OTP_ECC_SIGLE_COLLECTION:	// -3:OTP_ECC_SIGLE_COLLECTION
++		/* fall through */
++		OtpAddr = err_int_clear();
++		Data2HexAscii(OtpAddr, str, SIZE_32BIT);
++		PutStr("ECC Single Error Collection at : H'", 0);
++		PutStr(str, 1);
++		/* fall through */
++	case	OTP_NO_ERRORS:				// 0:OTP_NO_ERRORS
++		Data2HexAscii(OtpData, str, SIZE_32BIT);
++		PutStr(" Read data : H'", 0);
++		PutStr(str, 1);
++		break;
++	case	OTP_ADDRESS_INVALID:		// -1:OTP_ADDRESS_INVALID
++		PutStr("Invalid address", 1);
++		break;
++	case	OTP_PROTECTION_ERROR:		// -2:OTP_PROTECTION_ERROR(write) must be close.
++		PutStr("Write protected", 1);
++		break;
++	case	OTP_VERIFY_ERROR:			// -5:OTP_VERIFY_ERROR
++		PutStr("Data verify failed", 1);
++		break;
++	case	OTP_COMMAND_NOT_READY:		// -6:OTP_COMMAND_NOT_READY
++		PutStr("Command not ready", 1);
++		break;
++	default:
++		PutStr("Internal Error", 1);
++		break;
++	}
++
++	PutStr("=======================================", 1);
++	otp_close();
++}
++
++
++/************************************************************************
++	MODULE			: dgOTP_read				*
++	FUNCTION		: read OTP				*
++	COMMAND			: OTP_R					*
++	INPUT PARAMETER		: OTP_R					*
++*************************************************************************/
++void dgOTP_read(void)
++{
++	char		str[STR_BUF_SIZE];
++	uint32_t	OtpAddr, OtpData;
++	int32_t		ret;
++
++	PutStr("===== Read data from OTP ============", 1);
++	PutStr("===== Please Input Address ============", 1);
++	SetAddInputKey(&OtpAddr);
++
++	ret = otp_open();
++	if (OTP_NO_ERRORS != ret)
++	{
++		PutStr("Can't use OTP", 1);
++		return;		// Error abort
++	}
++	OtpData = 0xaaaa5555;
++	ret = otp_read(OtpAddr, &OtpData);
++	switch (ret)
++	{
++	case	OTP_ECC_DOUBLE_DETECTION:	// -4:OTP_ECC_DOUBLE_DETECTION
++		OtpAddr = err_int_clear();
++		Data2HexAscii(OtpAddr, str, SIZE_32BIT);
++		PutStr("ECC Double Error Detection at : H'", 0);
++		PutStr(str, 1);
++		break;
++	case	OTP_ECC_SIGLE_COLLECTION:	// -3:OTP_ECC_SIGLE_COLLECTION
++		/* fall through */
++		OtpAddr = err_int_clear();
++		Data2HexAscii(OtpAddr, str, SIZE_32BIT);
++		PutStr("ECC Single Error Collection at : H'", 0);
++		PutStr(str, 1);
++		/* fall through */
++	case	OTP_NO_ERRORS:				// 0:OTP_NO_ERRORS
++		Data2HexAscii(OtpData, str, SIZE_32BIT);
++		PutStr(" Read data : H'", 0);
++		PutStr(str, 1);
++		break;
++	case	OTP_ADDRESS_INVALID:		// -1:OTP_ADDRESS_INVALID
++		PutStr("Invalid address", 1);
++		break;
++	case	OTP_PROTECTION_ERROR:		// -2:OTP_PROTECTION_ERROR(read) mast be close.
++		PutStr("Read protected", 1);
++		break	;
++	case	OTP_COMMAND_NOT_READY:		// -6:OTP_COMMAND_NOT_READY
++		PutStr("Command not ready", 1);
++		break;
++	default:
++		PutStr("Internal Error", 1);
++		break;
++	}
++
++	PutStr("=======================================", 1);
++	otp_close();
++}
++
++/************************************************************************
++	MODULE			: dgOTP_dump				*
++	FUNCTION		: dump OTP				*
++	COMMAND			: OTP_D					*
++	INPUT PARAMETER		: OTP_D					*
++*************************************************************************/
++void dgOTP_dump(void)
++{
++	char		str[STR_BUF_SIZE];
++	uint32_t	OtpAddr, OtpData;
++	int32_t		ret;
++	int32_t		i;
++
++	PutStr("===== Read data from OTP ============", 1);
++	PutStr("===== Please Input Address ============", 1);
++	SetAddInputKey(&OtpAddr);
++
++	ret = otp_open();
++	if (OTP_NO_ERRORS != ret)
++	{
++		PutStr("Can't use OTP", 1);
++		return;		// Error abort
++	}
++	for (i = 0; (i < 16); i++)
++	{
++		OtpData = 0xaaaa5555;
++		ret = otp_read((OtpAddr & ~0x3f) + (i << 2), &OtpData);
++		switch (ret)
++		{
++	case	OTP_ECC_DOUBLE_DETECTION:	// -4:OTP_ECC_DOUBLE_DETECTION
++		OtpAddr = err_int_clear();
++		Data2HexAscii(OtpAddr, str, SIZE_32BIT);
++		PutStr("ECC Double Error Detection at : H'", 0);
++		PutStr(str, 1);
++		break;
++	case	OTP_ECC_SIGLE_COLLECTION:	// -3:OTP_ECC_SIGLE_COLLECTION
++		/* fall through */
++		OtpAddr = err_int_clear();
++		Data2HexAscii(OtpAddr, str, SIZE_32BIT);
++		PutStr("ECC Single Error Collection at : H'", 0);
++		PutStr(str, 1);
++		/* fall through */
++		case	OTP_NO_ERRORS:				// 0:OTP_NO_ERRORS
++			Data2HexAscii(OtpData, str, SIZE_32BIT);
++			PutStr(" Read data : H'", 0);
++			PutStr(str, 1);
++			break;
++		case	OTP_ADDRESS_INVALID:		// -1:OTP_ADDRESS_INVALID
++			PutStr("Invalid address", 1);
++			break;
++		case	OTP_PROTECTION_ERROR:		// -2:OTP_PROTECTION_ERROR(read) mast be close.
++			i = 16; // loop out
++			PutStr("Read protected", 1);
++			break;
++		case OTP_COMMAND_NOT_READY:			// -6:OTP_COMMAND_NOT_READY
++			PutStr("Command not ready", 1);
++			break;
++		default:
++			PutStr("Internal Error", 1);
++			break;
++		}
++	}
++
++	PutStr("=======================================", 1);
++	otp_close();
++}
+diff --git a/dgtable.c b/dgtable.c
+index 4677d93..4305724 100644
+--- a/dgtable.c
++++ b/dgtable.c
+@@ -15,6 +15,9 @@
+ #if EMMC == 1
+ #include "dgemmc.h"
+ #endif /* EMMC == 1 */
++#if OTP_USE == 1
++#include "dgotp.h"
++#endif /* OTP_USE == 1 */
+ 
+ /********************************************************/
+ /*        ROM TABLE                                     */
+@@ -54,6 +57,11 @@ const com_menu MonCom[COMMAND_UNIT] = {
+ 	"F"			, dgFill_byte			,  0	,
+ 	"FL"			, dgFill_long			,  0	,
+ 	"FX"			, dgFill_longlong		,  0	,
++#if OTP_USE == 1
++	"OTP_W"			, dgOTP_write			,  0	,
++	"OTP_R"			, dgOTP_read			,  0	,
++	"OTP_D"			, dgOTP_dump			,  0	,
++#endif /* OTP_USE == 1 */
+ 	TBL_END			, 0				,  0
+ };
+ 
+diff --git a/include/dgotp.h b/include/dgotp.h
+new file mode 100644
+index 0000000..3ad64a2
+--- /dev/null
++++ b/include/dgotp.h
+@@ -0,0 +1,9 @@
++/*
++ * Copyright (c) 2015-2021, Renesas Electronics Corporation. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++void dgOTP_write(void);
++void dgOTP_read(void);
++void dgOTP_dump(void);
+diff --git a/include/dgtable.h b/include/dgtable.h
+index 6ff9460..21ca8dd 100644
+--- a/include/dgtable.h
++++ b/include/dgtable.h
+@@ -7,7 +7,7 @@
+ /**********************
+ * COMMAND_UNITE       *
+ ***********************/
+-#define		COMMAND_UNIT		30
++#define		COMMAND_UNIT		50
+ #define		NORMAL_END		0
+ #define		ERROR_END		1
+ 
+@@ -15,7 +15,7 @@
+ * MESSAGE LINE       *
+ ***********************/
+ #define		START_MESS_MON_LINE	2
+-#define		ALL_HELP_MESS_LINE	30
++#define		ALL_HELP_MESS_LINE	50
+ 
+ /**********************
+ * TABLE PARAMETER     *
+diff --git a/makefile b/makefile
+index 0d4c834..cb6d542 100644
+--- a/makefile
++++ b/makefile
+@@ -200,6 +200,11 @@ ifeq ("$(EMMC_IOV)", "")
+ EMMC_IOV=1_8V
+ endif
+ 
++# Select OTP_USE("ENABLE"or"DISABLE" )
++ifeq ("$(OTP_USE)", "")
++OTP_USE = ENABLE
++endif
++
+ ifeq ("$(INTERNAL_MEMORY_ONLY)", "")
+ INTERNAL_MEMORY_ONLY = DISABLE
+ endif
+@@ -321,6 +326,13 @@ ifeq ("$(EMMC)", "DISABLE")
+ 	CFLAGS += -DEMMC=0
+ endif
+ 
++ifeq ("$(OTP_USE)", "ENABLE")
++	CFLAGS += -DOTP_USE=1
++endif
++ifeq ("$(OTP_USE)", "DISABLE")
++	CFLAGS += -DOTP_USE=0
++endif
++
+ ifeq ("$(QSPI_IOV)", "1_8V")
+ 	CFLAGS += -DQSPI_IO_1_8V=1
+ endif
+@@ -425,6 +437,12 @@ SRC_FILE +=				\
+ 	emmc_utility.c
+ endif
+ 
++ifeq ("$(OTP_USE)", "ENABLE")
++SRC_FILE +=				\
++	dgotp.c				\
++	otp/otp_sys.c
++endif
++
+ OBJ_FILE := $(addprefix $(OBJECT_DIR)/,$(patsubst %.c,%.o,$(SRC_FILE)))
+ 
+ #Dependency File
+diff --git a/makefile.linaro b/makefile.linaro
+index 453572f..5239b8a 100644
+--- a/makefile.linaro
++++ b/makefile.linaro
+@@ -200,6 +200,11 @@ ifeq ("$(EMMC_IOV)", "")
+ EMMC_IOV=1_8V
+ endif
+ 
++# Select OTP_USE("ENABLE"or"DISABLE" )
++ifeq ("$(OTP_USE)", "")
++OTP_USE = ENABLE
++endif
++
+ ifeq ("$(INTERNAL_MEMORY_ONLY)", "")
+ INTERNAL_MEMORY_ONLY = DISABLE
+ endif
+@@ -321,6 +326,13 @@ ifeq ("$(EMMC)", "DISABLE")
+ 	CFLAGS += -DEMMC=0
+ endif
+ 
++ifeq ("$(OTP_USE)", "ENABLE")
++	CFLAGS += -DOTP_USE=1
++endif
++ifeq ("$(OTP_USE)", "DISABLE")
++	CFLAGS += -DOTP_USE=0
++endif
++
+ ifeq ("$(QSPI_IOV)", "1_8V")
+ 	CFLAGS += -DQSPI_IO_1_8V=1
+ endif
+@@ -425,6 +437,12 @@ SRC_FILE +=				\
+ 	emmc_utility.c
+ endif
+ 
++ifeq ("$(OTP_USE)", "ENABLE")
++SRC_FILE +=				\
++	dgotp.c				\
++	otp/otp_sys.c
++endif
++
+ OBJ_FILE := $(addprefix $(OBJECT_DIR)/,$(patsubst %.c,%.o,$(SRC_FILE)))
+ 
+ #Dependency File
+diff --git a/otp/otp_iodefine.h b/otp/otp_iodefine.h
+new file mode 100644
+index 0000000..ee25d42
+--- /dev/null
++++ b/otp/otp_iodefine.h
+@@ -0,0 +1,176 @@
++/**********************************************************************************************************************
++ * DISCLAIMER
++ * This software is supplied by Renesas Electronics Corporation and is only intended for use with Renesas products. No
++ * other uses are authorized. This software is owned by Renesas Electronics Corporation and is protected under all
++ * applicable laws, including copyright laws.
++ * THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
++ * THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED. TO THE MAXIMUM
++ * EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES
++ * SHALL BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR ANY REASON RELATED TO
++ * THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
++ * Renesas reserves the right, without notice, to make changes to this software and to discontinue the availability of
++ * this software. By using this software, you agree to the additional terms and conditions found by accessing the
++ * following link:
++ * http://www.renesas.com/disclaimer
++ *
++ * Copyright (C) 2020 Renesas Electronics Corporation. All rights reserved.
++ *********************************************************************************************************************/
++/**********************************************************************************************************************
++ * File Name	: otp_iodefine.h
++ * Version		: 1.0
++ * Description	: IO define header.
++ *********************************************************************************************************************/
++/**********************************************************************************************************************
++ * History : DD.MM.YYYY Version	 Description
++ *		   : 01.09.2020 1.00	 First Release
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ Includes	<System Includes> , "Project Includes"
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ Macro definitions
++ *********************************************************************************************************************/
++#ifndef	OTP_IODEFINE_H
++#define	OTP_IODEFINE_H
++
++#define	OTP_OTPPWR_PWR	(1 << 0)
++#define	OTP_OTPPWR_ACCL	(1 << 4)
++#define	OTP_OTPPWR_MASK	(0x00000011)
++
++/**********************************************************************************************************************
++ Global Typedef definitions
++ *********************************************************************************************************************/
++struct	st_otp
++{
++	union
++	{
++		uint32_t	WORD;
++		struct
++		{
++			uint32_t	PWR:1;
++			uint32_t	:3;
++			uint32_t	ACCL:1;
++			uint32_t	:27;
++		} BIT;
++	} OTPPWR;
++	union
++	{
++		uint32_t	WORD;
++		struct
++		{
++			uint32_t	CMD_RDY:1;
++			uint32_t	ERR_WR:2;
++			uint32_t	ERR_WP:1;
++			uint32_t	ERR_RP:1;
++			uint32_t	:3;
++			uint32_t	ERR_RDY_WR:1;
++			uint32_t	ERR_RDY_RD:1;
++			uint32_t	:22;
++		} BIT;
++	} OTPSTR;
++	union
++	{
++		uint32_t	WORD;
++		struct
++		{
++			uint32_t	STAWR:1;
++			uint32_t	:31;
++		} BIT;
++	} OTPSTAWR;
++	union
++	{
++		uint32_t	WORD;
++		struct
++		{
++			uint32_t	ADRWR:9;
++			uint32_t	:23;
++		} BIT;
++	} OTPADRWR;
++	union
++	{
++		uint32_t	WORD;
++		struct
++		{
++			uint32_t	DATAWR:32;
++		} BIT;
++	} OTPDATAWR;
++	union
++	{
++		uint32_t	WORD;
++		struct
++		{
++			uint32_t	ADRRD:9;
++			uint32_t	:23;
++		} BIT;
++	} OTPADRRD;
++	union
++	{
++		uint32_t	WORD;
++		struct
++		{
++			uint32_t	DATARD:32;
++		} BIT;
++	} OTPDATARD;
++	union
++	{
++		uint32_t	WORD;
++		struct
++		{
++			uint32_t	OTPFLAG:1;
++			uint32_t	:31;
++		} BIT;
++	} OTPFLAG;
++	union
++	{
++		uint32_t	WORD;
++		struct
++		{
++			uint32_t	SECINTEN:1;
++			uint32_t	DEDINTEN:1;
++			uint32_t	:30;
++		} BIT;
++	} OTPINTEN;
++	union
++	{
++		uint32_t	WORD;
++		struct
++		{
++			uint32_t	SECINTSTS:1;
++			uint32_t	DEDINTSTS:1;
++			uint32_t	:30;
++		} BIT;
++	} OTPINTSTS;
++	union
++	{
++		uint32_t	WORD;
++		struct
++		{
++			uint32_t	SECADDR:9;
++			uint32_t	:23;
++		} BIT;
++	} OTPSECADDR;
++	union
++	{
++		uint32_t	WORD;
++		struct
++		{
++			uint32_t	DEDADDR:9;
++			uint32_t	:23;
++		} BIT;
++	} OTPDEDADDR;
++};
++
++#define	OTP	(*(volatile struct st_otp *)0x11860000)
++
++/**********************************************************************************************************************
++ External global variables
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ Exported global functions
++ *********************************************************************************************************************/
++
++#endif
+diff --git a/otp/otp_sys.c b/otp/otp_sys.c
+new file mode 100644
+index 0000000..3c364e6
+--- /dev/null
++++ b/otp/otp_sys.c
+@@ -0,0 +1,324 @@
++/**********************************************************************************************************************
++ * DISCLAIMER
++ * This software is supplied by Renesas Electronics Corporation and is only intended for use with Renesas products. No
++ * other uses are authorized. This software is owned by Renesas Electronics Corporation and is protected under all
++ * applicable laws, including copyright laws.
++ * THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
++ * THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED. TO THE MAXIMUM
++ * EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES
++ * SHALL BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR ANY REASON RELATED TO
++ * THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
++ * Renesas reserves the right, without notice, to make changes to this software and to discontinue the availability of
++ * this software. By using this software, you agree to the additional terms and conditions found by accessing the
++ * following link:
++ * http://www.renesas.com/disclaimer
++ *
++ * Copyright (C) 2020 Renesas Electronics Corporation. All rights reserved.
++ *********************************************************************************************************************/
++/**********************************************************************************************************************
++ * File Name	: otp_sys.c
++ * Version		: 1.0
++ * Description	: This module provide OTP control functions.
++ *********************************************************************************************************************/
++/**********************************************************************************************************************
++ * History : DD.MM.YYYY Version	 Description
++ *		   : 01.09.2020 1.00	 First Release
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ Includes	<System Includes> , "Project Includes"
++ *********************************************************************************************************************/
++#include <stddef.h>
++#include "types.h"
++#include "common.h"
++#include "devdrv.h"
++
++#include "otp_sys.h"
++#include "otp_iodefine.h"
++
++/**********************************************************************************************************************
++ Macro definitions
++ *********************************************************************************************************************/
++#ifdef	RZG2L
++#define OTP_DUMMY_READ	(0x400 >> 2)
++#endif
++#ifdef	RZG2LC
++#define OTP_DUMMY_READ	(0x400 >> 2)
++#endif
++#ifdef	RZV2L
++#define OTP_DUMMY_READ	(0x400 >> 2)
++#endif
++#ifdef	RZG2UL
++#define OTP_DUMMY_READ	(0x280 >> 2)
++#endif
++
++/**********************************************************************************************************************
++ Local Typedef definitions
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ Exported global variables
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ Private (static) variables and functions
++ *********************************************************************************************************************/
++static void otp_dummy_read(void);
++
++/**********************************************************************************************************************
++ * Function Name: otp_open
++ * Description	: Open the OTP
++ * Arguments	: none
++ * Return Value : 0:OTP_NO_ERRORS
++ *				 -1:OTP_ALREADY_POWER_UP
++ *********************************************************************************************************************/
++int32_t otp_open(void)
++{
++	int32_t ret_val = OTP_NO_ERRORS;
++
++	if (0 != OTP.OTPPWR.BIT.PWR)
++	{
++		ret_val = OTP_ALREADY_POWER_UP;
++	}
++	else
++	{
++		while ((0 != OTP.OTPSTR.BIT.CMD_RDY) || (1 != OTP.OTPFLAG.BIT.OTPFLAG))
++		{
++			; /* wait */
++		}
++		OTP.OTPPWR.WORD = OTP_OTPPWR_MASK & (OTP_OTPPWR_PWR | OTP_OTPPWR_ACCL);	/* APB I/F enable */
++		while (1 != OTP.OTPSTR.BIT.CMD_RDY)
++		{
++			; /* wait */
++		}
++	}
++	return ret_val;
++}
++
++/**********************************************************************************************************************
++ * End of function otp_open
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ * Function Name: otp_close
++ * Description	: Close the OTP
++ * Arguments	: none
++ * Return Value : none
++ *********************************************************************************************************************/
++void otp_close(void)
++{
++	otp_dummy_read();
++	OTP.OTPPWR.WORD = OTP_OTPPWR_MASK & ~(OTP_OTPPWR_PWR | OTP_OTPPWR_ACCL);	/* APB I/F disable */
++	while (0 != OTP.OTPSTR.BIT.CMD_RDY)
++	{
++		; /* wait */
++	}
++	return;
++}
++
++/**********************************************************************************************************************
++ * End of function otp_close
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ * Function Name: otp_read
++ * Description	: Read the value from the OTP
++ * Arguments	: [in]	addr -
++ *						Address of where reading the functions
++ *				  [out]	value -
++ *						Pointer of where to put the reading value
++ * Return Value : 0:OTP_NO_ERRORS
++ *				 -1:OTP_ADDRESS_INVALID
++ *				 -2:OTP_PROTECTION_ERROR(read) mast be close.
++ *				 -3:OTP_ECC_SIGLE_COLLECTION
++ *				 -4:OTP_ECC_DOUBLE_DETECTION
++ *				 -6:OTP_COMMAND_NOT_READY
++ *********************************************************************************************************************/
++int32_t otp_read(const uint32_t addr, uint32_t * const value)
++{
++	int32_t ret_val = OTP_NO_ERRORS;
++
++	if ((0 != (addr & 0x03)) || ((addr >> 2) > 0x1FF))
++	{
++		ret_val = OTP_ADDRESS_INVALID;
++	}
++	else
++	{
++		while (1 != OTP.OTPSTR.BIT.CMD_RDY)
++		{
++			; /* Polling */
++		}
++
++		/* set word address to OTPADRRD */
++		OTP.OTPADRRD.WORD = (addr >> 2);
++
++		*value = OTP.OTPDATARD.WORD;
++
++		if (0 != OTP.OTPSTR.BIT.ERR_RDY_RD)
++		{
++			OTP.OTPSTR.BIT.ERR_RDY_RD = 0;
++			ret_val = OTP_COMMAND_NOT_READY;
++		}
++		else
++		{
++			if (0 != OTP.OTPSTR.BIT.ERR_RP)
++			{
++				ret_val = OTP_PROTECTION_ERROR;	/* mast be close. */
++			}
++			else
++			{
++				if (0 != OTP.OTPINTSTS.BIT.SECINTSTS)
++				{
++					ret_val = OTP_ECC_SIGLE_COLLECTION;
++				}
++				else if (0 != OTP.OTPINTSTS.BIT.DEDINTSTS)
++				{
++					ret_val = OTP_ECC_DOUBLE_DETECTION;
++				}
++				else
++				{
++					;	/* no error */
++				}
++			}
++		}
++	}
++
++	return ret_val;
++}
++
++/**********************************************************************************************************************
++ * End of function otp_read
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ * Function Name: otp_write
++ * Description	: Write the value to OTP
++ * Arguments	: [in]	addr -
++ *						Address of where writing the functions
++ *				  [in]	value -
++ *						Value to write
++ * Return Value : 0:OTP_NO_ERRORS
++ *				 -1:OTP_ADDRESS_INVALID
++ *				 -2:OTP_PROTECTION_ERROR(write) must be close.
++ *				 -3:OTP_ECC_SIGLE_COLLECTION
++ *				 -4:OTP_ECC_DOUBLE_DETECTION
++ *				 -5:OTP_VERIFY_ERROR
++ *				 -6:OTP_COMMAND_NOT_READY
++ *********************************************************************************************************************/
++int32_t otp_write(const uint32_t addr, const uint32_t value)
++{
++	int32_t ret_val = OTP_NO_ERRORS;
++
++	if ((0 != (addr & 0x03)) || ((addr >> 2) > 0x1FF))
++	{
++		ret_val = OTP_ADDRESS_INVALID;
++	}
++	else
++	{
++		while (1 != OTP.OTPSTR.BIT.CMD_RDY)
++		{
++			; /* Polling */
++		}
++
++		/* set word address to OTPADRRD */
++		OTP.OTPADRWR.WORD = (addr >> 2);
++
++		OTP.OTPDATAWR.WORD = value;
++
++		OTP.OTPSTAWR.BIT.STAWR = 1;
++
++		if (0 != OTP.OTPSTR.BIT.ERR_RDY_WR)
++		{
++			OTP.OTPSTR.BIT.ERR_RDY_WR = 0;
++			ret_val = OTP_COMMAND_NOT_READY;
++		}
++		else
++		{
++			while ((1 != OTP.OTPSTR.BIT.CMD_RDY) || (0 != OTP.OTPSTAWR.BIT.STAWR))
++			{
++				; /* Polling */
++			}
++
++			if ((0 != OTP.OTPSTR.BIT.ERR_WP) || (0 != OTP.OTPSTR.BIT.ERR_WR))
++			{
++				ret_val = OTP_PROTECTION_ERROR;	/* must be close. */
++			}
++			else
++			{
++				uint32_t read_value;
++
++				ret_val = otp_read(addr, &read_value);
++
++				if ((0 == ret_val) && (read_value != value))
++				{
++					ret_val = OTP_VERIFY_ERROR;
++				}
++			}
++		}
++	}
++
++	return ret_val;
++}
++
++/**********************************************************************************************************************
++ * End of function otp_write
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ * Function Name: otp_dummy_read
++ * Description	: Special sequence for read processing
++ * Arguments	: none
++ * Return Value : none
++ *********************************************************************************************************************/
++static void otp_dummy_read(void)
++{
++	uint32_t value;
++
++	while (1 != OTP.OTPSTR.BIT.CMD_RDY)
++	{
++		; /* Polling */
++	}
++
++	OTP.OTPADRRD.WORD = OTP_DUMMY_READ;
++
++	value = OTP.OTPDATARD.WORD;
++
++	return;
++}
++
++/**********************************************************************************************************************
++ * End of function otp_dummy_read
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ * Function Name: err_int_clear
++ * Description	: Clear error interrupt flag.
++ * Arguments	: none
++ * Return Value : Error address
++ *********************************************************************************************************************/
++uint32_t err_int_clear(void)
++{
++	uint32_t ret_val = 0xffffffff;
++
++	if (0 != OTP.OTPINTSTS.BIT.SECINTSTS)
++	{
++		OTP.OTPINTSTS.BIT.SECINTSTS = 0;		/* clear status */
++		ret_val = OTP.OTPSECADDR.WORD << 2;		/* ecc single collection address. */
++	}
++	else if (0 != OTP.OTPINTSTS.BIT.DEDINTSTS)
++	{
++		OTP.OTPINTSTS.BIT.DEDINTSTS = 0;		/* clear status */
++		ret_val = OTP.OTPDEDADDR.WORD << 2;		/* ecc double collection address. */
++	}
++	else
++	{
++		;	/* no error */
++	}
++
++	return ret_val;
++}
++
++/**********************************************************************************************************************
++ * End of function err_int_clear
++ *********************************************************************************************************************/
+diff --git a/otp/otp_sys.h b/otp/otp_sys.h
+new file mode 100644
+index 0000000..ee72d42
+--- /dev/null
++++ b/otp/otp_sys.h
+@@ -0,0 +1,77 @@
++/**********************************************************************************************************************
++ * DISCLAIMER
++ * This software is supplied by Renesas Electronics Corporation and is only intended for use with Renesas products. No
++ * other uses are authorized. This software is owned by Renesas Electronics Corporation and is protected under all
++ * applicable laws, including copyright laws.
++ * THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
++ * THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED. TO THE MAXIMUM
++ * EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES
++ * SHALL BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR ANY REASON RELATED TO
++ * THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
++ * Renesas reserves the right, without notice, to make changes to this software and to discontinue the availability of
++ * this software. By using this software, you agree to the additional terms and conditions found by accessing the
++ * following link:
++ * http://www.renesas.com/disclaimer
++ *
++ * Copyright (C) 2020 Renesas Electronics Corporation. All rights reserved.
++ *********************************************************************************************************************/
++/**********************************************************************************************************************
++ * File Name	: otp_sys.h
++ * Version		: 1.0
++ * Description	: header file for OTP control functions .
++ *********************************************************************************************************************/
++/**********************************************************************************************************************
++ * History	: DD.MM.YYYY Version	Description
++ *			: 01.09.2020 1.00		First Release
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ Includes	<System Includes> , "Project Includes"
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ Macro definitions
++ *********************************************************************************************************************/
++#ifndef	OTP_SYS_H_
++#define	OTP_SYS_H_
++
++/* CLK control */
++#define	REG_CPG_BASE_ADR	(0x11010000uL)
++#define	REG_CPG_CLKON_OTP	(*(volatile uint32_t *)(CPG_BASE_ADDR + 0x5A4uL))	/* offset 0x5A4 */	/* default 3 */
++#define	REG_CPG_RSTMON_OTP	(*(volatile uint32_t *)(CPG_BASE_ADDR + 0xA24uL))	/* offset 0xA24 */	/* default 0 */
++#define	REG_CPG_RST_OTP		(*(volatile uint32_t *)(CPG_BASE_ADDR + 0x8ACuL))	/* offset 0x8AC */	/* default 1 */
++
++/* OTP error/status types */
++#define	OTP_NO_ERRORS				(0)
++#define	OTP_ALREADY_POWER_UP		(-1)
++#define	OTP_ADDRESS_INVALID			(-1)
++#define	OTP_PROTECTION_ERROR		(-2)
++#define	OTP_ECC_SIGLE_COLLECTION	(-3)
++#define	OTP_ECC_DOUBLE_DETECTION	(-4)
++#define	OTP_VERIFY_ERROR			(-5)
++#define	OTP_COMMAND_NOT_READY		(-6)
++
++/**********************************************************************************************************************
++ Global Typedef definitions
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ External global variables
++ *********************************************************************************************************************/
++
++/**********************************************************************************************************************
++ Exported global functions
++ *********************************************************************************************************************/
++/* Open the OTP */
++extern int32_t otp_open(void);
++/* Close the OTP */
++extern void otp_close(void);
++/* Read the value from the OTP */
++extern int32_t otp_write(const uint32_t addr, const uint32_t value);
++/* Write the value to OTP */
++extern int32_t otp_read(const uint32_t addr, uint32_t * const value);
++/* Clear error interrupt flag. */
++extern uint32_t err_int_clear(void);
++
++#endif /* OTP_SYS_H_ */
