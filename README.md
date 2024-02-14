@@ -17,7 +17,7 @@ Instructions to access OTP in Linux using devmem2 command for RZ/G2L and RZ/V2L
   
 Please refer to file [linux_access_otp_non-secure.md](linux_access_otp_non-secure.md)
 
-## Note for Security Disabled
+### Note for Security Disabled
 OTP registers are set to 'secure access only' because the register SYS_SLVACCCTL7 is set to non-zero.
 
 This is hard coded in the array sys_acctl[] in file plat/renesas/rz/common/plat_security.c.
