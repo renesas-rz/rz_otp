@@ -1,6 +1,6 @@
 ## Instructions to build the OTP Pseudo Trusted application (PTA) in rzg_optee_os
 
-### Build OPTEE-OS with RZ/G2 BSP :
+### Build OPTEE-OS with RZ/G2L BSP :
 To enable OPTEE-OS build with RZ/G2 BSP, set the line in
 
  **"~rzg_vlp_\<package_version\>/meta-renesas/meta-rz-common/include/rzg2l-security-config.inc"** as follows.
@@ -10,9 +10,22 @@ To enable OPTEE-OS build with RZ/G2 BSP, set the line in
   </pre>
 This setting enables OPTEE and build OPTEE OS.
 
-### Prepare source code to build OTP PTA with yocto :
+### Build OPTEE-OS with RZ/G3S BSP :
+Get the security package from Renesas Official Site https://www.renesas.com/us/en/software-tool/rz-mpu-security-package#overview
+<pre>
+$ tar zxvf ~/rzg3s_bsp_security.tar.gz -C ~/ # decompress security package
+$ cd ~/rzg3s_bsp_<package version>
+$ tar zxvf ~/rzg3s_bsp_security/meta-rz-features.tar.gz
+$ cd ~/rzg3s_bsp_<package version>/build
+$ bitbake-layers add-layer ../meta-rz-features/meta-rz-security # add security layer
+$ echo ENABLE_SPD_OPTEE = \"1\" >> conf/local.conf # enable OPTEE
+</pre>
+This setting enables OPTEE and build OPTEE OS
+
+### Prepare source code to build OTP PTA with yocto for RZ/G2L :
 Once BSP is built with OPTEE-OS, you can find the optee-os source files in location **"rzg_vlp_&lt;package_version&gt/build/tmp/work/smarc_rzg2l-poky-linux/optee-os/3.19.0+gitAUTOINC+c6e430d7b8-r0/git/"**
 
+The folder structure for G2L is:
 <pre>
 The folder structure for G2L is:
 ├── core
@@ -55,7 +68,59 @@ for "g2l/pta/sub.mk", please add below line
   srcs-y += pta_otp.c
 </pre>
 
-### How to build and deploy OPTEE-OS in yocto :
+### Prepare source code to build OTP PTA with yocto for RZ/G3S :
+Once BSP is built with OPTEE-OS, you can find the optee-os source files in location **"rzg3s_bsp_&lt;package_version&gt/build/tmp/work/smarc_rzg3s-poky-linux/optee-os/3.19.0+gitAUTOINC+c6e430d7b8-r0/git/"**
+<pre>
+The folder structure for G3S is:
+├── core
+    ├── arch
+		├── arm
+			├── plat-rz
+				└── g3s
+					├── drivers
+					└── pta
+
+</pre>
+
+As seen in the folder structure, any source codes for the application are included inside "drivers" and "pta".
+For OTP PTA application, all the drivers code for OTP access (read/write) are included in the "drivers" folder and
+all the code for Pseudo TA  are included in "pta" folder. 
+
+Currently, for G3S, there is no "pta" folder, so create directory "pta"
+
+Please copy files from source_files in the respective folder. The folder structure looks like below after adding files.
+Please update the Makefiles that needs to be updated once source files are copied.
+<pre>
+g3s
+├── drivers
+│   ├── otp.c
+│   ├── otp.h
+│   └── sub.mk            
+└── pta
+│   ├── include
+│   │   └── pta_otp.h
+│   ├── pta_otp.c
+│	└── sub.mk
+└── sub.mk
+</pre>
+
+Please make following change in Makefiles:
+
+for "g3s/drivers/sub.mk", please add below line
+<pre>
+  srcs-y += otp.c
+</pre>
+To include "pta" folder in the build, for "g3s/sub.mk"
+<pre>
+  global-incdirs-y += .
+  subdirs-y += drivers pta
+</pre>
+for "g3s/pta/sub.mk", please add below line
+<pre>
+  srcs-y += pta_otp.c
+</pre>
+
+### How to build and deploy OPTEE-OS in yocto for RZ/G2L,G3S :
 
 To build OPTEE-OS :
 
