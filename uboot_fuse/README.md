@@ -81,7 +81,7 @@ Please make the following changes in uboot
 ##### File: renesas-u-boot-cip/arch/arm/mach-rmobile/sip.c
 Download sip.c file inside directory "renesas-u-boot-cip/arch/arm/mach-rmobile/"
 <pre>
-  wget https://github.com/renesas-rz/rz_otp/blob/main/uboot_fuse/source_files/sip.c
+  wget https://raw.githubusercontent.com/renesas-rz/rz_otp/main/uboot_fuse/source_files/sip.c
 </pre> 
 ##### File: renesas-u-boot-cip/arch/arm/mach-rmobile/Makefile
 <pre>
