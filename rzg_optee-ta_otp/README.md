@@ -3,7 +3,7 @@
 ### How to build :
 This section describes how to build OTP access(read/write) TA
 #### Prepare the compiler
-Get Yocto SDK for RZ/G2L with OPTEE-OS built
+Get Yocto SDK for RZ/G2L,G3S with OPTEE-OS built
 <pre>
   source /opt/poky/3.1.21/environment-setup-aarch64-poky-linux
 </pre>
