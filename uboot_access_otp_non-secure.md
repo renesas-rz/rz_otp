@@ -1,5 +1,5 @@
 ## Read/Write OTP in uboot using md command
-Example of OTP read and write in uboot using md command for RZ/G2L and RZ/V2L
+Example of OTP read and write in uboot using md command for RZ/G2L, RZ/V2L and RZ/G3S
 ### OTP read :
 ```
 # confirm PWR bit is 0 in OTP power control register (OTPPWR)
