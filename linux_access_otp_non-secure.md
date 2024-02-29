@@ -1,5 +1,5 @@
 ## Read/Write OTP in Linux using devmem2 command
-Example of OTP read and write in Linux using devmem2 command for RZ/G2L and RZ/V2L
+Example of OTP read and write in Linux using devmem2 command for RZ/G2L, RZ/V2L and RZ/G3S
 ### OTP read :
 
 ```
