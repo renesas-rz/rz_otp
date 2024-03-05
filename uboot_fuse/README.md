@@ -235,13 +235,13 @@ Once build is finished, please program the board with the updated firmware.
 fuse - Fuse sub-system
 
 Usage:
-fuse read <bank> <word> [<cnt>] - read 1 or 'cnt' fuse words,
+fuse read &lt;bank&gt &lt;word&gt [&lt;cnt&gt] - read 1 or 'cnt' fuse words,
     starting at 'word'
-fuse sense <bank> <word> [<cnt>] - sense 1 or 'cnt' fuse words,
+fuse sense &lt;bank&gt &lt;word&gt [&lt;cnt&gt] - sense 1 or 'cnt' fuse words,
     starting at 'word'
-fuse prog [-y] <bank> <word> <hexval> [<hexval>...] - program 1 or
+fuse prog [-y] &lt;bank&gt &lt;word&gt &lt;hexval&gt [&lt;hexval&gt...] - program 1 or
     several fuse words, starting at 'word' (PERMANENT)
-fuse override <bank> <word> <hexval> [<hexval>...] - override 1 or
+fuse override &lt;bank&gt &lt;word&gt &lt;hexval&gt [&lt;hexval&gt...] - override 1 or
     several fuse words, starting at 'word'
 => fuse read 0 0x200
 Reading bank 0:
@@ -253,7 +253,7 @@ Warning: Programming fuses is an irreversible operation!
          This may brick your system.
          Use this command only if you are sure of what you are doing!
 
-Really perform this fuse programming? <y/N>
+Really perform this fuse programming? &lt;y/N&gt
 y
 => fuse read 0 0x404 
 Reading bank 0:
