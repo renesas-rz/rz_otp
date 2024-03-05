@@ -115,7 +115,7 @@ Download sip.c file inside directory "renesas-u-boot-cip/arch/arm/mach-rmobile/"
 ##### File: renesas-u-boot-cip/drivers/misc/rzg2l_fuse.c
 Download rzg2l_fuse.c file inside directory "renesas-u-boot-cip/drivers/misc/"
 <pre>
-  wget https://github.com/renesas-rz/rz_otp/blob/main/uboot_fuse/source_files/rzg2l_fuse.c
+  wget https://raw.githubusercontent.com/renesas-rz/rz_otp/main/uboot_fuse/source_files/rzg2l_fuse.c
 </pre>
 ##### File: renesas-u-boot-cip/drivers/misc/Makefile
 <pre>
