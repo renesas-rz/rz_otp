@@ -4,10 +4,13 @@ This repositoy contains the instructions to access OTP (read/write) from flashwr
 ## OTP Memory Map
 The Base address of the OTP for both RZ/G2L and RZ/G3S is 0x11860000. OTP registers can only be accessed in 32-bit.
 
-The Offset Address for User Area (One Time Read) for RZ/G2L is <b>0x0200-0x0400</b>
+RZ/G2L: The Offset Address 
 
-The Offset Address for User Area (One Time Read) for RZ/G3S is <b>0x0200 - 0x027F</b>
+User Area (One Time Read) <b>0x0200-0x0400</b> and User Area <b>0x580-0x800</b>
 
+RZ/G3S: The Offset Address 
+
+User Area (One Time Read) <b>0x0200 - 0x027F</b> and User Area <b>0x0380 - 0x03FF </b>
 ## What is included:
 ### flash_writer_patch
 * Patch for flash writer to access OTP
