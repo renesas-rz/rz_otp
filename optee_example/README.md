@@ -1,7 +1,7 @@
 ## Sample example to access OTP from Linux userspace
 This repository includes the source files required to access OTP from Linux using OPTEE-OS. 
 
-You can find more information about OPTEE-OS on [optee_os_note.md](OPTEE-OS-Note)
+You can find more information about OPTEE-OS on [OPTEE-OS-Note](optee_os_note.md)
 ## Instructions to build the OTP Pseudo Trusted application (PTA) in rzg_optee_os
 
 ### Build OPTEE-OS with RZ/G2L BSP :
