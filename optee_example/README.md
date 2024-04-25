@@ -18,9 +18,9 @@ This setting enables OPTEE and build OPTEE OS.
 Get the security package from Renesas Official Site https://www.renesas.com/us/en/software-tool/rz-mpu-security-package#overview
 <pre>
 $ tar zxvf ~/rzg3s_bsp_security.tar.gz -C ~/ # decompress security package
-$ cd ~/rzg3s_bsp_<package version>
+$ cd ~/rzg3s_bsp_&lt;package_version&gt
 $ tar zxvf ~/rzg3s_bsp_security/meta-rz-features.tar.gz
-$ cd ~/rzg3s_bsp_<package version>/build
+$ cd ~/rzg3s_bsp_&lt;package_version&gt/build
 $ bitbake-layers add-layer ../meta-rz-features/meta-rz-security # add security layer
 $ echo ENABLE_SPD_OPTEE = \"1\" >> conf/local.conf # enable OPTEE
 </pre>
