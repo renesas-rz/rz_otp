@@ -4,27 +4,19 @@ This repository includes the source files required to access OTP from Linux usin
 You can find more information about OPTEE-OS on [OPTEE-OS-Note](optee_os_note.md)
 ## Instructions to build the OTP Pseudo Trusted application (PTA) in rzg_optee_os
 
-### Build OPTEE-OS with RZ/G2L BSP :
-To enable OPTEE-OS build with RZ/G2 BSP, set the line in
-
- **"~rzg_vlp_\<package_version\>/meta-renesas/meta-rz-common/include/rzg2l-security-config.inc"** as follows.
-  <pre>
-    # Enable build and load of OP-TEE
-    ENABLE_SPD_OPTEE            ?= '1'
-  </pre>
-This setting enables OPTEE and build OPTEE OS.
-
-### Build OPTEE-OS with RZ/G3S BSP :
+### Build OPTEE-OS with RZ BSP :
+Starting rzg_vlp_v3.0.6, OPTEE OS is moved from meta-renesas to meta-rz-features in RZ MPU Security Package for RZ/G v1.4.3. 
 Get the security package from Renesas Official Site https://www.renesas.com/us/en/software-tool/rz-mpu-security-package#overview
 <pre>
-$ tar zxvf ~/rzg3s_bsp_security.tar.gz -C ~/ # decompress security package
-$ cd ~/rzg3s_bsp_&lt;package_version&gt
-$ tar zxvf ~/rzg3s_bsp_security/meta-rz-features.tar.gz
-$ cd ~/rzg3s_bsp_&lt;package_version&gt/build
+$ tar zxvf ~/rzg_vlp_security.tar.gz -C ~/ # decompress security package
+$ cd ~/rzg_vlp_&lt;package_version&gt
+$ tar zxvf ~/rzg_vlp_security/meta-rz-features.tar.gz
+$ cd ~/rzg_vlp_&lt;package_version&gt/build
 $ bitbake-layers add-layer ../meta-rz-features/meta-rz-security # add security layer
 $ echo ENABLE_SPD_OPTEE = \"1\" >> conf/local.conf # enable OPTEE
+$ echo TRUSTED_BOARD_BOOT = \"1\" >> conf/local.conf # enable secure boot
 </pre>
-This setting enables OPTEE and build OPTEE OS
+This setting enables OPTEE and secure boot and build OPTEE OS
 
 ### Prepare source code to build OTP PTA with yocto for RZ/G2L :
 Once BSP is built with OPTEE-OS, you can find the optee-os source files in location **"rzg_vlp_&lt;package_version&gt/build/tmp/work/smarc_rzg2l-poky-linux/optee-os/3.19.0+gitAUTOINC+c6e430d7b8-r0/git/"**
@@ -73,7 +65,7 @@ for "g2l/pta/sub.mk", please add below line
 </pre>
 
 ### Prepare source code to build OTP PTA with yocto for RZ/G3S :
-Once BSP is built with OPTEE-OS, you can find the optee-os source files in location **"rzg3s_bsp_&lt;package_version&gt/build/tmp/work/smarc_rzg3s-poky-linux/optee-os/3.19.0+gitAUTOINC+c6e430d7b8-r0/git/"**
+Once BSP is built with OPTEE-OS, you can find the optee-os source files in location **"rzg_vlp_&lt;package_version&gt/build/tmp/work/smarc_rzg3s-poky-linux/optee-os/3.19.0+gitAUTOINC+ff9f077ed9-r0/git/"**
 
 The folder structure for G3S is:
 <pre>
