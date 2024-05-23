@@ -19,7 +19,7 @@ $ echo TRUSTED_BOARD_BOOT = \"1\" >> conf/local.conf # enable secure boot
 This setting enables OPTEE and secure boot and build OPTEE OS
 
 ### Prepare source code to build OTP PTA with yocto for RZ/G2L :
-Once BSP is built with OPTEE-OS, you can find the optee-os source files in location **"rzg_vlp_&lt;package_version&gt/build/tmp/work/smarc_rzg2l-poky-linux/optee-os/3.19.0+gitAUTOINC+c6e430d7b8-r0/git/"**
+Once BSP is built with OPTEE-OS, you can find the optee-os source files in location **"rzg_vlp_&lt;package_version&gt;/build/tmp/work/smarc_rzg2l-poky-linux/optee-os/3.19.0+gitAUTOINC+c6e430d7b8-r0/git/"**
 
 The folder structure for G2L is:
 <pre>
@@ -65,7 +65,7 @@ for "g2l/pta/sub.mk", please add below line
 </pre>
 
 ### Prepare source code to build OTP PTA with yocto for RZ/G3S :
-Once BSP is built with OPTEE-OS, you can find the optee-os source files in location **"rzg_vlp_&lt;package_version&gt/build/tmp/work/smarc_rzg3s-poky-linux/optee-os/3.19.0+gitAUTOINC+ff9f077ed9-r0/git/"**
+Once BSP is built with OPTEE-OS, you can find the optee-os source files in location **"rzg_vlp_&lt;package_version&gt;/build/tmp/work/smarc_rzg3s-poky-linux/optee-os/3.19.0+gitAUTOINC+ff9f077ed9-r0/git/"**
 
 The folder structure for G3S is:
 <pre>
