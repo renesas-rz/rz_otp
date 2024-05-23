@@ -36,9 +36,9 @@ copy the executale file to the evaluation board
       - Optional argument 'count' specifies the number of values to read (default is 1)
     rzg_otp write &lt;address&gt &lt;value&gt
       - Write a value to OTP at offset 'address'
-  $ rzg_otp 0x200
+  $ rzg_otp read 0x200
     0x200: 0xAAAA5555
-  $ rzg_otp 0x200 5  
+  $ rzg_otp read 0x200 5  
     0x200: 0xAAAA5555
     0x204: 0xAAAA5510
     0x208: 0xAAAA5511
