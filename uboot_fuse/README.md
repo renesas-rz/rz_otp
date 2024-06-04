@@ -161,10 +161,6 @@ PLAT_BL_COMMON_SOURCES	:=	drivers/renesas/common/iic_dvfs/iic_dvfs.c \
 <b>+			drivers/delay_timer/generic_delay_timer.c								
 </pre>
 
-#### File: rzg_trusted-firmware-a/plat/renesas/rzg/platform.mk
-<pre>
-<b>+ include drivers/renesas/rzg/timer/timer.mk</b> 
-</pre>
 #### File: rzg_trusted-firmware-a/plat/renesas/rz/common/rz_plat_sip_handler.c
 
 Please update the file with the codes from source_files [rz_plat_sip_handler.c](source_files/rz_plat_sip_handler_g3s.c)
