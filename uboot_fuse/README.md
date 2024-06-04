@@ -63,12 +63,7 @@ plat_security_setup();
  					drivers/arm/tzc/tzc400.c \
 					
 </pre>
-#### File: rzg_trusted-firmware-a/plat/renesas/rzg/platform.mk
-<pre>
-  include drivers/renesas/rzg/qos/qos.mk
-<b>+ include drivers/renesas/rzg/timer/timer.mk</b>
-  include drivers/renesas/rzg/pfc/pfc.mk 
-</pre>
+
 #### File: rzg_trusted-firmware-a/plat/renesas/rz/common/rz_plat_sip_handler.c
 
 Please update the file with the codes from source_files [rz_plat_sip_handler.c](source_files/rz_plat_sip_handler.c)
